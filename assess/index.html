@@ -170,19 +170,29 @@ function renderContact(){
 function saveC(){A.contact={org:val("c_org"),name:val("c_name"),tel:val("c_tel"),line:val("c_line"),note:val("c_note")}}
 function val(id){return document.getElementById(id).value.trim()}
 
+// 不取號、不要總表與主管報表 → 一對一叫號機（卜蜂 115/08 那種），不配主機
+function oneToOne(){return A.ticket==="none"&&A.board==="no"&&A.report!=="yes"}
 // 依答案組出建議配置。品名＝正茂報價單品名。
 function config(){
   var keep=A.legacy==="keep"?A.keepItems:[],kp=function(x){return keep.indexOf(x)>=0};
   var n=A.counters,items=[];
   function add(key,name,qty,desc,keepFlag){items.push({key:key,name:name,qty:qty,desc:desc,keep:!!keepFlag})}
   var langs=A.voice==="yes"?A.lang.join("、"):"";
-  if(A.ticket==="kiosk")add("kiosk","智能多媒體伺服主機-KIOSK（落地型）",1,"觸控選業務、列印號碼牌",kp("取號機"));
-  if(A.ticket==="aio")add("kiosk","智能多媒體伺服主機-AIO（桌上型）",1,"觸控選業務、列印號碼牌",kp("取號機"));
-  if(A.ticket==="none")add("kiosk","資料處理器",1,"叫號系統的控制主機",false);
-  add("soft","智能多媒體觸控號碼牌系統軟體",1,"設定 "+A.lanes+" 種業務分流與叫號規則");
+  if(oneToOne()){
+    add("one","4\" 三位數一對一叫號系統",n,(langs?langs+"語音叫號；":"")+"每個櫃台一組叫號鍵盤＋號碼顯示器",kp("櫃台顯示器")&&kp("叫號鍵盤"));
+  }else{
+  if(A.ticket==="kiosk")add("kiosk","智能多媒體伺服主機-KIOSK（落地型）",1,"觸控選業務、列印號碼牌（含熱感式印表機）",kp("取號機"));
+  if(A.ticket==="aio"){add("kiosk","智能多媒體伺服主機-AIO（桌上型）",1,"觸控選業務",kp("取號機"));add("printer","熱感式印表機",1,"列印號碼牌",kp("取號機"))}
+  if(A.ticket!=="none")add("soft","智能多媒體觸控號碼牌系統軟體",1,"設定 "+A.lanes+" 種業務分流與叫號規則");
   if(A.voice==="yes"){add("voice","自動播音系統",1,langs+"語音叫號",kp("喇叭／播音"));add("amp","擴大機＋喇叭",1,"等候區廣播",kp("喇叭／播音"))}
   add("disp","2.3\" 三位數櫃台顯示器",n,"每個櫃台上方顯示目前號碼",kp("櫃台顯示器"));
   add("key","智能櫃員操作器",n,"承辦人按一下叫下一號",kp("叫號鍵盤"));
+  if(!kp("櫃台顯示器")){
+    add("dp","資料處理器",1,"把叫號資料送到各櫃台顯示器");
+    add("split","訊號分配器",Math.ceil((n+1)/4),"把訊號分接到各櫃台");
+    add("drv","驅動電路板",Math.ceil(n/6),"驅動櫃台顯示器");
+  }
+  }
   var board=A.board==="unsure"?"lcd":A.board;
   if(board==="lcd")add("board","主顯示器（液晶叫號總表）",1,A.ads==="yes"?"顯示叫號，空檔輪播宣導":"同時顯示各櫃台叫號",kp("叫號總表"));
   if(board==="led")add("board","LED 叫號總表顯示幕",1,"尺寸依現場評估",kp("叫號總表"));
@@ -207,20 +217,20 @@ function diagram(items){
   var top=[];var b=has("board"),ad=has("adscreen");
   if(b)top.push({x:ad?75:135,w:110,c:ad?130:190,t:A.board==="led"?"LED 總表":"液晶叫號總表",s:"等候區",k:b.keep});
   if(ad)top.push({x:195,w:110,c:250,t:"宣導螢幕",s:"播廣告宣導"});
-  var row2=[],kio=has("kiosk"),vo=has("voice"),rp=has("report");
-  if(kio)row2.push({x:15,c:70,t:A.ticket==="kiosk"?"直立式取號機":A.ticket==="aio"?"桌上型取號機":"叫號主機",s:A.ticket==="none"?"控制叫號":A.lanes+" 種業務",k:kio.keep});
+  var row2=[],kio=has("kiosk")||(A.ticket==="none"&&has("dp")),vo=has("voice"),rp=has("report"),one=oneToOne();
+  if(kio)row2.push({x:15,c:70,t:A.ticket==="kiosk"?"直立式取號機":A.ticket==="aio"?"桌上型取號機":"資料處理器",s:A.ticket==="none"?"控制叫號":A.lanes+" 種業務",k:kio.keep});
   if(rp)row2.push({x:135,c:190,t:"主管報表",s:"等候、統計"});
   if(vo)row2.push({x:255,c:310,t:"語音叫號",s:A.lang.join("、").slice(0,7),k:vo.keep});
-  var hasTop=top.length>0,dy=hasTop?0:-70;
-  top.forEach(function(o){B+=box(o.x,Y1,o.w,H,o.t,o.s,"main",o.k);L+='<line x1="'+o.c+'" y1="'+(Y1+H)+'" x2="'+o.c+'" y2="'+(BUS+dy)+'"/>';xs.push(o.c)});
+  var hasTop=top.length>0,dy=hasTop?0:-70;if(one&&!hasTop)dy=-160;if(one&&hasTop)dy=-70;
+  top.forEach(function(o){B+=box(o.x,Y1,o.w,H,o.t,o.s,"main",o.k);if(!one)L+='<line x1="'+o.c+'" y1="'+(Y1+H)+'" x2="'+o.c+'" y2="'+(BUS+dy)+'"/>';xs.push(o.c)});
   row2.forEach(function(o){B+=box(o.x,Y2+dy,110,H,o.t,o.s,"main",o.k);L+='<line x1="'+o.c+'" y1="'+(Y2+dy+H)+'" x2="'+o.c+'" y2="'+(BUS+dy)+'"/>';xs.push(o.c)});
   var n=A.counters,slots=n<=4?Array.apply(null,{length:n}).map(function(_,k){return "櫃台 "+(k+1)}):["櫃台 1","櫃台 2","…","櫃台 "+n];
-  var w=80,g=10,tot=slots.length*w+(slots.length-1)*g,sx=(380-tot)/2,dk=has("disp").keep&&has("key").keep;
+  var w=80,g=10,tot=slots.length*w+(slots.length-1)*g,sx=(380-tot)/2,dk=one?has("one").keep:(has("disp").keep&&has("key").keep);
   slots.forEach(function(t,k){var x=sx+k*(w+g),c=x+w/2;
     if(t==="…"){B+='<text x="'+c+'" y="'+(Y3+dy+H/2)+'" text-anchor="middle" dominant-baseline="central" font-size="20" fill="#5d6b80">⋯</text>';return}
-    B+=box(x,Y3+dy,w,H,t,"顯示＋鍵盤","c",dk);L+='<line x1="'+c+'" y1="'+(BUS+dy)+'" x2="'+c+'" y2="'+(Y3+dy)+'"/>';xs.push(c)});
+    B+=box(x,Y3+dy,w,H,t,one?"一對一叫號":"顯示＋鍵盤","c",dk);if(!one)L+='<line x1="'+c+'" y1="'+(BUS+dy)+'" x2="'+c+'" y2="'+(Y3+dy)+'"/>';xs.push(c)});
   var mn=Math.min.apply(null,xs),mx=Math.max.apply(null,xs);
-  L+='<line x1="'+mn+'" y1="'+(BUS+dy)+'" x2="'+mx+'" y2="'+(BUS+dy)+'"/>';
+  if(!one&&xs.length)L+='<line x1="'+mn+'" y1="'+(BUS+dy)+'" x2="'+mx+'" y2="'+(BUS+dy)+'"/>';
   var h=Y3+dy+H+12;
   return '<svg viewBox="0 0 380 '+h+'" width="100%" role="img" aria-label="建議配置架構圖"><g stroke="#7f93b0" stroke-width="1.2">'+L+'</g>'+B+'</svg>';
 }
@@ -242,8 +252,9 @@ function photos(items){
   var v=has("voice");if(v)t.push(["voice","語音叫號喇叭",1,v.keep]);
   var b=has("board");if(b)t.push([A.board==="led"?"led":"lcd",A.board==="led"?"LED 叫號總表":"液晶叫號總表",1,b.keep]);
   var a=has("adscreen");if(a)t.push(["adscreen","宣導播放螢幕",1,false]);
-  var d=has("disp");t.push(["disp","櫃台顯示器",d.qty,d.keep]);
-  var kk=has("key");t.push(["key","櫃台叫號鍵盤",kk.qty,kk.keep]);
+  var o1=has("one");if(o1)t.push(["disp","一對一叫號系統",o1.qty,o1.keep]);
+  var d=has("disp");if(d)t.push(["disp","櫃台顯示器",d.qty,d.keep]);
+  var kk=has("key");if(kk)t.push(["key","櫃台叫號鍵盤",kk.qty,kk.keep]);
   var r=has("report");if(r)t.push(["report","主管報表",1,false]);
   return t.map(function(x){return '<div class="pt'+(x[3]?' kp':'')+'"><span class="qn">'+(x[3]?'沿用':'×'+x[2])+'</span><div class="im"><img src="img/'+PHOTO[x[0]]+'" alt="'+x[1]+'" loading="lazy"></div><div class="lb">'+x[1]+'</div></div>'}).join("");
 }
